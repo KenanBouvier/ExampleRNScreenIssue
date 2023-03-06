@@ -1,4 +1,4 @@
-import * as React from 'react';
+import React, {useEffect, useLayoutEffect} from 'react';
 import {
   View,
   Text,
@@ -17,15 +17,25 @@ import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
 function HomeScreen() {
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+  const [render, setRender] = useState<boolean>(false);
   const headerHeight = useHeaderHeight();
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
 
-  React.useLayoutEffect(() => {
+  useEffect(() => {
+    // @ts-ignore
+    const unsubscribe = navigation.addListener('transitionEnd', () => {
+      setRender(true);
+    });
+
+    return unsubscribe;
+  }, [navigation]);
+
+  useLayoutEffect(() => {
     navigation.setOptions({
       headerLargeTitleShadowVisible: true,
       headerShown: true,
-      headerTransparent: true,
+      headerTransparent: true, // set to false here to demonstrate glitchy activity indicator/pull to refresh.
       headerSearchBarOptions: {
         placeholder: 'Search',
         cancelButtonText: 'Cancel',
@@ -33,48 +43,44 @@ function HomeScreen() {
     });
   }, [navigation]);
 
-  return (
-    <View
+  return render ? (
+    <SectionList
       style={{
+        // Comment out if headerTransparent is false. I.e testing out glitchy refresh control.
         marginTop: headerHeight,
-        flexGrow: 1,
         marginBottom: insets.bottom,
-      }}>
-      <>
-        <SectionList
-          sections={sectionData}
-          contentInsetAdjustmentBehavior="automatic"
-          keyExtractor={(item, index) => item + index}
-          initialNumToRender={60}
-          maxToRenderPerBatch={60}
-          refreshControl={
-            <RefreshControl
-              tintColor={'black'}
-              progressViewOffset={40}
-              refreshing={isRefreshing}
-              onRefresh={async () => {
-                setIsRefreshing(true);
-                await new Promise(res => {
-                  setTimeout(() => res(undefined), 1000);
-                });
-                setIsRefreshing(false);
-              }}
-              size={100}
-            />
-          }
-          renderItem={({item}) => (
-            <View>
-              <Text>{item}</Text>
-            </View>
-          )}
-          renderSectionHeader={({section: {title}}) => (
-            <Text style={{backgroundColor: '#d3d3d3', fontSize: 20}}>
-              {title}
-            </Text>
-          )}
+      }}
+      sections={sectionData}
+      contentInsetAdjustmentBehavior="automatic"
+      keyExtractor={(item, index) => item + index}
+      initialNumToRender={60}
+      maxToRenderPerBatch={60}
+      refreshControl={
+        <RefreshControl
+          tintColor={'black'}
+          progressViewOffset={40}
+          refreshing={isRefreshing}
+          onRefresh={async () => {
+            setIsRefreshing(true);
+            await new Promise(res => {
+              setTimeout(() => res(undefined), 1000);
+            });
+            setIsRefreshing(false);
+          }}
+          size={100}
         />
-      </>
-    </View>
+      }
+      renderItem={({item}) => (
+        <View>
+          <Text>{item}</Text>
+        </View>
+      )}
+      renderSectionHeader={({section: {title}}) => (
+        <Text style={{backgroundColor: '#d3d3d3', fontSize: 20}}>{title}</Text>
+      )}
+    />
+  ) : (
+    <></>
   );
 }
 
